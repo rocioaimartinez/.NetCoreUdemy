@@ -4,40 +4,106 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Module1.Data;
 using Module1.Models;
 
 namespace Module1.Controllers
 {
-    [Produces("application/json")]
-    [Route("api/Products")]
+    [Route("api/[controller]")]
     [ApiController]
     public class ProductsController : ControllerBase
     {
-        static List<Product> _products = new List<Product>()
+        private ProductBDContext productBDContext;
+
+        public ProductsController(ProductBDContext _productBDContext)
         {
-            new Product(){ProductId=0, ProductName="Laptop", ProductPrice="200"},
-            new Product(){ProductId=1, ProductName="SmartPhone", ProductPrice="100"}
-        };
-        public IActionResult Get()
-        {
-            return Ok(_products);
-            //return StatusCode()
+            productBDContext = _productBDContext;
         }
-        [HttpPost]
-        public IActionResult Post([FromBody]Product product)
+
+        // GET: api/Products
+        [HttpGet]
+        public IEnumerable<Product> Get(string sortPrice)
         {
-            _products.Add(product);
+            IQueryable<Product> products;
+            switch (sortPrice)
+            {
+                case "desc":
+                    products = productBDContext.Products.OrderByDescending(p => p.Price);
+                    break;
+                case "asc":
+                    products = productBDContext.Products.OrderBy(p => p.Price);
+                    break;
+                default:
+                    products = productBDContext.Products;
+                    break;
+            }
+            return products;
+        }
+
+        // GET: api/Products/5
+        [HttpGet("{id}", Name = "Get")]
+        public IActionResult Get(int id)
+        {
+            var product = productBDContext.Products.SingleOrDefault(p => p.Id == id);
+            if (product == null)
+            {
+                return NotFound("No record found");
+            }
+            return Ok(product);
+        }
+
+
+        // POST: api/Products
+        [HttpPost]
+        public IActionResult Post([FromBody] Product product)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            productBDContext.Products.Add(product);
+            productBDContext.SaveChanges(true);
             return StatusCode(StatusCodes.Status201Created);
         }
+
+        // PUT: api/Products/5
         [HttpPut("{id}")]
-        public void Put(int id, [FromBody] Product product)
+        public IActionResult Put(int id, [FromBody] Product product)
         {
-            _products[id] = product;
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            if (id != product.Id)
+            {
+                return BadRequest();
+            }
+            try
+            {
+                productBDContext.Products.Update(product);
+                productBDContext.SaveChanges(true);
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine(e);
+                return NotFound("Product Id doesn't exist");
+            }
+            
+            return Ok("Product Updated");
         }
+
+        // DELETE: api/ApiWithActions/5
         [HttpDelete("{id}")]
-        public void Delete(int id)
+        public IActionResult Delete(int id)
         {
-             _products.RemoveAt(id);
+            var product = productBDContext.Products.SingleOrDefault(p => p.Id == id);
+            if(product == null)
+            {
+                return NotFound("No record Found");
+            }
+            productBDContext.Products.Remove(product);
+            productBDContext.SaveChanges(true);
+            return Ok("Record deleted");
         }
     }
 }
