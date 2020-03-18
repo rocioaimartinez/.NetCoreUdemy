@@ -6,45 +6,62 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Module1.Data;
 using Module1.Models;
+using Module1.Services;
 
 namespace Module1.Controllers
 {
-    [Route("api/[controller]")]
+    //[ApiVersion("1.0")]
+    [Produces("application/json")]
+    //[Route("api/v{version:apiVersion}/Products")]
+    [Route("api/Products")]
     [ApiController]
     public class ProductsController : ControllerBase
     {
-        private ProductBDContext productBDContext;
+        private IProduct productRepository;
 
-        public ProductsController(ProductBDContext _productBDContext)
+        public ProductsController(IProduct _productRepository)
         {
-            productBDContext = _productBDContext;
+            productRepository = _productRepository;
         }
 
-        // GET: api/Products
+        // GET: api/Productsblob:file:///51a3546f-6fd7-4686-9283-c2f71a779bc9
         [HttpGet]
-        public IEnumerable<Product> Get(string sortPrice)
+        public IEnumerable<Product> Get(string searchCriteria)
         {
-            IQueryable<Product> products;
-            switch (sortPrice)
-            {
-                case "desc":
-                    products = productBDContext.Products.OrderByDescending(p => p.Price);
-                    break;
-                case "asc":
-                    products = productBDContext.Products.OrderBy(p => p.Price);
-                    break;
-                default:
-                    products = productBDContext.Products;
-                    break;
-            }
-            return products;
+            //var products = productBDContext.Products.Where(p => p.ProductName.StartsWith(searchCriteria));
+            return productRepository.GetProducts();
         }
+        //public IEnumerable<Product> Get(int? pageNumber, int? pageSize)
+        //{
+        //    var products = from p in productBDContext.Products.OrderBy(a => a.Id) select p;
+        //    int currentPage = pageNumber ?? 1;
+        //    int currentSize = pageSize ?? 5;
+        //    var items = products.Skip((currentPage - 1) * currentSize).Take(currentSize).ToList();
+        //    return items;
+        //}
+        //public IEnumerable<Product> Get(string sortPrice)
+        //{
+        //    IQueryable<Product> products;
+        //    switch (sortPrice)
+        //    {
+        //        case "desc":
+        //            products = productBDContext.Products.OrderByDescending(p => p.Price);
+        //            break;
+        //        case "asc":
+        //            products = productBDContext.Products.OrderBy(p => p.Price);
+        //            break;
+        //        default:
+        //            products = productBDContext.Products;
+        //            break;
+        //    }
+        //    return products;
+        //}
 
         // GET: api/Products/5
         [HttpGet("{id}", Name = "Get")]
         public IActionResult Get(int id)
         {
-            var product = productBDContext.Products.SingleOrDefault(p => p.Id == id);
+            var product = productRepository.GetProduct(id);
             if (product == null)
             {
                 return NotFound("No record found");
@@ -61,8 +78,7 @@ namespace Module1.Controllers
             {
                 return BadRequest(ModelState);
             }
-            productBDContext.Products.Add(product);
-            productBDContext.SaveChanges(true);
+            productRepository.PostProduct(product);
             return StatusCode(StatusCodes.Status201Created);
         }
 
@@ -80,8 +96,7 @@ namespace Module1.Controllers
             }
             try
             {
-                productBDContext.Products.Update(product);
-                productBDContext.SaveChanges(true);
+                productRepository.UpdateProduct(product);
             }
             catch(Exception e)
             {
@@ -96,13 +111,7 @@ namespace Module1.Controllers
         [HttpDelete("{id}")]
         public IActionResult Delete(int id)
         {
-            var product = productBDContext.Products.SingleOrDefault(p => p.Id == id);
-            if(product == null)
-            {
-                return NotFound("No record Found");
-            }
-            productBDContext.Products.Remove(product);
-            productBDContext.SaveChanges(true);
+            productRepository.DeleteProduct(id);
             return Ok("Record deleted");
         }
     }
